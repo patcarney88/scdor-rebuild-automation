@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SCDOR Rebuild - CloudWatch Alarms and Monitoring Configuration
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+  
+  ProjectName:
+    Type: String
+    Default: scdor-rebuild
+    Description: Project name for resource naming
+  
+  AlertEmail:
+    Type: String
+    Default: alerts@example.com
+    Description: Email address for critical alerts
+
+Resources:
+  # SNS Topic for Alarms
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ProjectName}-alarms-${Environment}"
+      DisplayName: SCDOR Rebuild Critical Alarms
+      Subscription:
+        - Endpoint: !Ref AlertEmail
+          Protocol: email
+
+  # High Error Rate Alarm
+  ErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-high-error-rate-${Environment}"
+      AlarmDescription: Triggers when error rate exceeds 2%
+      MetricName: ErrorRate
+      Namespace: !Sub "${ProjectName}/${Environment}"
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 2
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+      TreatMissingData: notBreaching
+
+  # Browser Crash Rate Alarm
+  BrowserCrashAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-browser-crashes-${Environment}"
+      AlarmDescription: Triggers when browser crash rate exceeds 0.5%
+      MetricName: BrowserCrashRate
+      Namespace: !Sub "${ProjectName}/${Environment}"
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 0.5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # CAPTCHA Failure Rate Alarm
+  CaptchaFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-captcha-failures-${Environment}"
+      AlarmDescription: Triggers when CAPTCHA solve rate drops below 90%
+      MetricName: CaptchaSuccessRate
+      Namespace: !Sub "${ProjectName}/${Environment}"
+      Statistic: Average
+      Period: 600
+      EvaluationPeriods: 2
+      Threshold: 90
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Processing Time Alarm
+  ProcessingTimeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-high-processing-time-${Environment}"
+      AlarmDescription: Triggers when average processing time exceeds 5 minutes
+      MetricName: ProcessingTime
+      Namespace: !Sub "${ProjectName}/${Environment}"
+      Statistic: Average
+      Period: 900
+      EvaluationPeriods: 1
+      Threshold: 300
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # DLQ Message Alarm
+  DeadLetterQueueAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-dlq-messages-${Environment}"
+      AlarmDescription: Triggers when messages accumulate in DLQ
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Dimensions:
+        - Name: QueueName
+          Value: !Sub "${ProjectName}-dlq-${Environment}"
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Lambda Error Alarm
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-lambda-errors-${Environment}"
+      AlarmDescription: Triggers on Lambda function errors
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub "${ProjectName}-*"
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Lambda Throttle Alarm
+  LambdaThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-lambda-throttles-${Environment}"
+      AlarmDescription: Triggers on Lambda throttling
+      MetricName: Throttles
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub "${ProjectName}-*"
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Circuit Breaker Open Alarm
+  CircuitBreakerAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-circuit-breaker-open-${Environment}"
+      AlarmDescription: Triggers when circuit breaker opens
+      MetricName: CircuitBreakerOpen
+      Namespace: !Sub "${ProjectName}/${Environment}"
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Browser Pool Exhaustion Alarm
+  BrowserPoolAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-browser-pool-exhausted-${Environment}"
+      AlarmDescription: Triggers when browser pool is exhausted
+      MetricName: AvailableBrowsers
+      Namespace: !Sub "${ProjectName}/${Environment}"
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Memory Usage Alarm
+  MemoryUsageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-high-memory-usage-${Environment}"
+      AlarmDescription: Triggers when Lambda memory usage exceeds 90%
+      MetricName: MemoryUtilization
+      Namespace: !Sub "${ProjectName}/${Environment}"
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 90
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  # Composite Alarm for System Health
+  SystemHealthAlarm:
+    Type: AWS::CloudWatch::CompositeAlarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-system-health-${Environment}"
+      AlarmDescription: Overall system health composite alarm
+      AlarmRule: !Sub |
+        ALARM("${ErrorRateAlarm}")
+        OR ALARM("${BrowserCrashAlarm}")
+        OR ALARM("${LambdaErrorAlarm}")
+        OR ALARM("${CircuitBreakerAlarm}")
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref AlarmTopic
+
+Outputs:
+  AlarmTopicArn:
+    Description: SNS Topic ARN for alarms
+    Value: !Ref AlarmTopic
+    Export:
+      Name: !Sub "${ProjectName}-AlarmTopic-${Environment}"
+
+  SystemHealthAlarmName:
+    Description: Name of the composite system health alarm
+    Value: !Ref SystemHealthAlarm
+    Export:
+      Name: !Sub "${ProjectName}-SystemHealthAlarm-${Environment}"

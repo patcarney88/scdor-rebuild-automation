@@ -1,0 +1,105 @@
+# SAM Configuration for SCDOR Rebuild Project
+# Deployment configuration for all environments
+
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "scdor-rebuild"
+s3_prefix = "scdor-rebuild"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+parameter_overrides = [
+    "Environment=dev",
+    "ProjectName=scdor-rebuild",
+    "AlertEmail=alerts@blaircato.com"
+]
+
+# Development Environment
+[dev]
+[dev.deploy.parameters]
+stack_name = "scdor-rebuild-dev"
+s3_bucket = "scdor-rebuild-deployments-dev"
+parameter_overrides = [
+    "Environment=dev",
+    "ProjectName=scdor-rebuild",
+    "AlertEmail=dev-alerts@blaircato.com",
+    "MigrationMode=shadow",
+    "EnableNewInfrastructure=true",
+    "EnableParallelProcessing=true"
+]
+tags = [
+    "Environment=dev",
+    "Project=SCDOR-Rebuild",
+    "ManagedBy=SAM",
+    "Owner=DevTeam"
+]
+
+# Staging Environment
+[staging]
+[staging.deploy.parameters]
+stack_name = "scdor-rebuild-staging"
+s3_bucket = "scdor-rebuild-deployments-staging"
+parameter_overrides = [
+    "Environment=staging",
+    "ProjectName=scdor-rebuild",
+    "AlertEmail=staging-alerts@blaircato.com",
+    "MigrationMode=cutover",
+    "EnableNewInfrastructure=true",
+    "EnableParallelProcessing=true"
+]
+tags = [
+    "Environment=staging",
+    "Project=SCDOR-Rebuild",
+    "ManagedBy=SAM",
+    "Owner=DevTeam"
+]
+
+# Production Environment
+[prod]
+[prod.deploy.parameters]
+stack_name = "scdor-rebuild-prod"
+s3_bucket = "scdor-rebuild-deployments-prod"
+parameter_overrides = [
+    "Environment=prod",
+    "ProjectName=scdor-rebuild",
+    "AlertEmail=prod-alerts@blaircato.com",
+    "MigrationMode=cutover",
+    "EnableNewInfrastructure=true",
+    "EnableParallelProcessing=false"
+]
+confirm_changeset = true
+tags = [
+    "Environment=prod",
+    "Project=SCDOR-Rebuild",
+    "ManagedBy=SAM",
+    "Owner=ProdTeam",
+    "CostCenter=Operations"
+]
+
+# Integration Testing Configuration
+[integration]
+[integration.deploy.parameters]
+stack_name = "scdor-rebuild-integration"
+s3_bucket = "scdor-rebuild-deployments-integration"
+parameter_overrides = [
+    "Environment=integration",
+    "ProjectName=scdor-rebuild",
+    "AlertEmail=integration-alerts@blaircato.com",
+    "MigrationMode=shadow",
+    "EnableNewInfrastructure=true",
+    "EnableParallelProcessing=true"
+]
+tags = [
+    "Environment=integration",
+    "Project=SCDOR-Rebuild",
+    "ManagedBy=SAM",
+    "Owner=QATeam"
+]
